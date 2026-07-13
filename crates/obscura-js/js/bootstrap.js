@@ -2819,7 +2819,34 @@ globalThis.CSS = {
       return true;
     } catch (e) { return false; }
   },
-  escape(s){ return String(s); }
+  escape(s){
+    // CSSOM "serialize an identifier": guarantees '#' + CSS.escape(id) is a
+    // valid selector even for ids like React useId()'s ':r0:' or ones that
+    // start with a digit. (Previous stub returned the input unchanged, so
+    // querySelector threw SyntaxError on such ids instead of matching.)
+    var str = String(s);
+    var result = "";
+    var first = str.charCodeAt(0);
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c === 0x0000) { result += "\uFFFD"; continue; }
+      if ((c >= 0x0001 && c <= 0x001F) || c === 0x007F ||
+          (i === 0 && c >= 0x0030 && c <= 0x0039) ||
+          (i === 1 && c >= 0x0030 && c <= 0x0039 && first === 0x002D)) {
+        result += "\\" + c.toString(16) + " ";
+        continue;
+      }
+      if (i === 0 && c === 0x002D && str.length === 1) { result += "\\-"; continue; }
+      if (c >= 0x0080 || c === 0x002D || c === 0x005F ||
+          (c >= 0x0030 && c <= 0x0039) ||
+          (c >= 0x0041 && c <= 0x005A) || (c >= 0x0061 && c <= 0x007A)) {
+        result += str.charAt(i);
+        continue;
+      }
+      result += "\\" + str.charAt(i);
+    }
+    return result;
+  }
 };
 
 globalThis.HTMLElement = Element;
